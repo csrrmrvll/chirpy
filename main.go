@@ -6,11 +6,11 @@ import (
 )
 
 func main() {
-	const filepathRoot = "."
+	const filepathRoot = "./logo.png"
 	const port = "8080"
 
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir(filepathRoot)))
+	mux.Handle("/assets/logo.png", http.StripPrefix("/assets/", http.FileServer(http.Dir("./"))))
 
 	srv := &http.Server{
 		Addr:    ":" + port,
