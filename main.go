@@ -15,8 +15,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
-	mux.Handle("/app", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
-	mux.Handle("/assets/logo.png", http.StripPrefix("/assets/", http.FileServer(http.Dir(filepathRoot+"/assets"))))
+	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 
 	srv := &http.Server{
 		Addr:    ":" + port,
