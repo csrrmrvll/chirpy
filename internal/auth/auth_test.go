@@ -71,38 +71,50 @@ func TestCheckPasswordHash(t *testing.T) {
 	}
 }
 
-func TestMakeJWT(t *testing.T) {
-	// Test data
-	userID := "123e4567-e89b-12d3-a456-426614174000"
-	tokenSecret := "mysecretkey"
-	expiresIn := 1 * time.Minute
-	// Call the function
-	token, err := MakeJWT(uuid.MustParse(userID), tokenSecret, expiresIn)
-	if err != nil {
-		t.Fatalf("MakeJWT() error = %v", err)
-	}
-	if token == "" {
-		t.Fatalf("MakeJWT() returned empty token")
-	}
-}
-
 func TestValidateJWT(t *testing.T) {
-	// Test data
-	userID := "123e4567-e89b-12d3-a456-426614174000"
-	tokenSecret := "mysecretkey"
-	expiresIn := 1 * time.Minute
+	userID := uuid.New()
+	validToken, _ := MakeJWT(userID, "secret", time.Hour)
 
-	// Create a valid token
-	validToken, err := MakeJWT(uuid.MustParse(userID), tokenSecret, expiresIn)
-	if err != nil {
-		t.Fatalf("MakeJWT() error = %v", err)
+	tests := []struct {
+		name        string
+		tokenString string
+		tokenSecret string
+		wantUserID  uuid.UUID
+		wantErr     bool
+	}{
+		{
+			name:        "Valid token",
+			tokenString: validToken,
+			tokenSecret: "secret",
+			wantUserID:  userID,
+			wantErr:     false,
+		},
+		{
+			name:        "Invalid token",
+			tokenString: "invalid.token.string",
+			tokenSecret: "secret",
+			wantUserID:  uuid.Nil,
+			wantErr:     true,
+		},
+		{
+			name:        "Wrong secret",
+			tokenString: validToken,
+			tokenSecret: "wrong_secret",
+			wantUserID:  uuid.Nil,
+			wantErr:     true,
+		},
 	}
 
-	id, err := ValidateJWT(validToken, tokenSecret)
-	if err != nil {
-		t.Fatalf("ValidateJWT() error = %v", err)
-	}
-	if id.String() != userID {
-		t.Fatalf("ValidateJWT() returned wrong user ID: got %v, want %v", id.String(), userID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotUserID, err := ValidateJWT(tt.tokenString, tt.tokenSecret)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateJWT() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotUserID != tt.wantUserID {
+				t.Errorf("ValidateJWT() gotUserID = %v, want %v", gotUserID, tt.wantUserID)
+			}
+		})
 	}
 }
