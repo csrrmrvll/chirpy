@@ -4,14 +4,16 @@ import (
 	"github.com/alexedwards/argon2id"
 )
 
+// HashPassword -
 func HashPassword(password string) (string, error) {
-	hashed_password, err := argon2id.CreateHash(password, argon2id.DefaultParams)
+	hash, err := argon2id.CreateHash(password, argon2id.DefaultParams)
 	if err != nil {
 		return "", err
 	}
-	return hashed_password, nil
+	return hash, nil
 }
 
+// CheckPasswordHash -
 func CheckPasswordHash(password, hash string) (bool, error) {
 	match, err := argon2id.ComparePasswordAndHash(password, hash)
 	if err != nil {

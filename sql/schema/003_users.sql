@@ -1,7 +1,7 @@
 -- +goose Up
 ALTER TABLE users
 ADD COLUMN hashed_password TEXT NOT NULL
-CONSTRAINT hashed_password_default DEFAULT ('unset');
+DEFAULT 'unset';
 
 -- +goose Down
 ALTER TABLE users
