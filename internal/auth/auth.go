@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/argon2id"
@@ -17,6 +18,9 @@ const (
 	// TokenTypeAccess -
 	TokenTypeAccess TokenType = "chirpy-access"
 )
+
+// ErrNoAuthHeaderIncluded -
+var ErrNoAuthHeaderIncluded = errors.New("no auth header included in request")
 
 // HashPassword -
 func HashPassword(password string) (string, error) {
@@ -61,19 +65,16 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		func(token *jwt.Token) (interface{}, error) { return []byte(tokenSecret), nil },
 	)
 	if err != nil {
-		fmt.Println("Failed to parse token with claims")
 		return uuid.Nil, err
 	}
 
 	userIDString, err := token.Claims.GetSubject()
 	if err != nil {
-		fmt.Println("Failed to get subject from claims")
 		return uuid.Nil, err
 	}
 
 	issuer, err := token.Claims.GetIssuer()
 	if err != nil {
-		fmt.Println("Failed to get issuer from claims")
 		return uuid.Nil, err
 	}
 	if issuer != string(TokenTypeAccess) {
@@ -87,14 +88,16 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	return id, nil
 }
 
+// GetBearerToken -
 func GetBearerToken(headers http.Header) (string, error) {
 	authHeader := headers.Get("Authorization")
 	if authHeader == "" {
-		return "", errors.New("missing Authorization header")
+		return "", ErrNoAuthHeaderIncluded
 	}
-	const prefix = "Bearer "
-	if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
-		return "", errors.New("invalid Authorization header format")
+	splitAuth := strings.Split(authHeader, " ")
+	if len(splitAuth) < 2 || splitAuth[0] != "Bearer" {
+		return "", errors.New("malformed authorization header")
 	}
-	return authHeader[len(prefix):], nil
+
+	return splitAuth[1], nil
 }
