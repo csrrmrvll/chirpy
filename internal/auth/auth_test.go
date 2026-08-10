@@ -2,6 +2,9 @@ package auth
 
 import (
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestCheckPasswordHash(t *testing.T) {
@@ -65,5 +68,41 @@ func TestCheckPasswordHash(t *testing.T) {
 				t.Errorf("CheckPasswordHash() expects %v, got %v", tt.matchPassword, match)
 			}
 		})
+	}
+}
+
+func TestMakeJWT(t *testing.T) {
+	// Test data
+	userID := "123e4567-e89b-12d3-a456-426614174000"
+	tokenSecret := "mysecretkey"
+	expiresIn := 1 * time.Minute
+	// Call the function
+	token, err := MakeJWT(uuid.MustParse(userID), tokenSecret, expiresIn)
+	if err != nil {
+		t.Fatalf("MakeJWT() error = %v", err)
+	}
+	if token == "" {
+		t.Fatalf("MakeJWT() returned empty token")
+	}
+}
+
+func TestValidateJWT(t *testing.T) {
+	// Test data
+	userID := "123e4567-e89b-12d3-a456-426614174000"
+	tokenSecret := "mysecretkey"
+	expiresIn := 1 * time.Minute
+
+	// Create a valid token
+	validToken, err := MakeJWT(uuid.MustParse(userID), tokenSecret, expiresIn)
+	if err != nil {
+		t.Fatalf("MakeJWT() error = %v", err)
+	}
+
+	id, err := ValidateJWT(validToken, tokenSecret)
+	if err != nil {
+		t.Fatalf("ValidateJWT() error = %v", err)
+	}
+	if id.String() != userID {
+		t.Fatalf("ValidateJWT() returned wrong user ID: got %v, want %v", id.String(), userID)
 	}
 }
