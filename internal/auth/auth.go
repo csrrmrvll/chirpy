@@ -46,12 +46,13 @@ func CheckPasswordHash(password, hash string) (bool, error) {
 func MakeJWT(
 	userID uuid.UUID,
 	tokenSecret string,
+	expiresIn time.Duration,
 ) (string, error) {
 	signingKey := []byte(tokenSecret)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Issuer:    string(TokenTypeAccess),
 		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(time.Hour)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
 		Subject:   userID.String(),
 	})
 	return token.SignedString(signingKey)
@@ -103,8 +104,10 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return splitAuth[1], nil
 }
 
+// MakeRefreshToken makes a random 256 bit token
+// encoded in hex
 func MakeRefreshToken() string {
-	key := make([]byte, 32)
-	rand.Read(key)
-	return hex.EncodeToString(key)
+	token := make([]byte, 32)
+	rand.Read(token)
+	return hex.EncodeToString(token)
 }

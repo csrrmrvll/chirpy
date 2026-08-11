@@ -5,61 +5,52 @@ import (
 	"time"
 
 	"github.com/csrrmrvll/chirpy/internal/auth"
-	"github.com/csrrmrvll/chirpy/internal/database"
 )
 
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		RefreshToken string `json:"refresh_token"`
-	}
 	type response struct {
-		Token        string `json:"token"`
-		RefreshToken string `json:"refresh_token"`
+		Token string `json:"token"`
 	}
 
-	token, err := auth.GetBearerToken(r.Header)
+	refreshToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "No Authorization header provided", nil)
+		respondWithError(w, http.StatusBadRequest, "Couldn't find token", err)
 		return
 	}
 
-	refreshToken, err := cfg.db.GetRefreshToken(r.Context(), token)
+	user, err := cfg.db.GetUserFromRefreshToken(r.Context(), refreshToken)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Invalid refresh token", err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't get user for refresh token", err)
 		return
 	}
 
-	if refreshToken.ExpiresAt.Before(time.Now().UTC()) {
-		respondWithError(w, http.StatusUnauthorized, "Refresh token has expired", nil)
-		return
-	}
-
-	if refreshToken.RevokedAt.Valid {
-		respondWithError(w, http.StatusUnauthorized, "Refresh token has been revoked", nil)
-		return
-	}
-
-	newAccessToken, err := auth.MakeJWT(
-		refreshToken.UserID,
+	accessToken, err := auth.MakeJWT(
+		user.ID,
 		cfg.jwtSecret,
+		time.Hour,
 	)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't create new access JWT", err)
-		return
-	}
-
-	newRefreshToken, err := cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
-		Token:     newAccessToken,
-		UserID:    refreshToken.UserID,
-		ExpiresAt: time.Now().UTC().Add(60 * 24 * time.Hour),
-	})
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't create new refresh token", err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate token", err)
 		return
 	}
 
 	respondWithJSON(w, http.StatusOK, response{
-		Token:        newAccessToken,
-		RefreshToken: newRefreshToken.Token,
+		Token: accessToken,
 	})
+}
+
+func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Couldn't find token", err)
+		return
+	}
+
+	_, err = cfg.db.RevokeRefreshToken(r.Context(), refreshToken)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't revoke session", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
