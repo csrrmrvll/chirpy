@@ -14,9 +14,6 @@ SELECT * FROM users
 WHERE email = $1;
 
 -- name: UpdateUser :one
-UPDATE users
-SET updated_at = NOW(),
-    email = COALESCE($2, email),
-    hashed_password = COALESCE($3, hashed_password)
+UPDATE users SET email = $2, hashed_password = $3, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
