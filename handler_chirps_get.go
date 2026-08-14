@@ -43,15 +43,6 @@ func authorIDFromRequest(r *http.Request) (uuid.UUID, error) {
 	return authorID, nil
 }
 
-func sortingFromRequest(r *http.Request) string {
-	sort := r.URL.Query().Get("sort")
-	switch sort {
-	case "asc", "desc":
-		return sort
-	}
-	return "asc"
-}
-
 func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
 	authorID, err := authorIDFromRequest(r)
 	if err != nil {
@@ -60,7 +51,6 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 	}
 
 	var dbChirps []database.Chirp
-
 	if authorID != uuid.Nil {
 		dbChirps, err = cfg.db.GetChirpsByAuthor(r.Context(), authorID)
 	} else {
@@ -69,6 +59,12 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chirps", err)
 		return
+	}
+
+	sortDirection := "asc"
+	sortDirectionParam := r.URL.Query().Get("sort")
+	if sortDirectionParam == "desc" {
+		sortDirection = "desc"
 	}
 
 	chirps := []Chirp{}
@@ -82,12 +78,12 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 		})
 	}
 
-	sortDesc := sortingFromRequest(r)
 	sort.Slice(chirps, func(i, j int) bool {
-		if sortDesc == "asc" {
-			return chirps[i].CreatedAt.Before(chirps[j].CreatedAt)
+		if sortDirection == "desc" {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
 		}
-		return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		return chirps[i].CreatedAt.Before(chirps[j].CreatedAt)
 	})
+
 	respondWithJSON(w, http.StatusOK, chirps)
 }
